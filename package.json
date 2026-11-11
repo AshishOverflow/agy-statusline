@@ -1,0 +1,26 @@
+{
+  "name": "agy-statusline",
+  "version": "1.0.0",
+  "description": "A sleek, minimalistic statusline for Google Antigravity CLI (agy)",
+  "main": "statusline.js",
+  "bin": {
+    "agy-statusline": "statusline.js"
+  },
+  "scripts": {
+    "start": "node statusline.js",
+    "test": "node statusline.js --test",
+    "preview": "node statusline.js --preview",
+    "install-agy": "node install.js"
+  },
+  "keywords": [
+    "antigravity",
+    "agy",
+    "statusline",
+    "cli",
+    "tui",
+    "minimalist",
+    "prompt"
+  ],
+  "author": "Ashish M K S",
+  "license": "MIT"
+}
