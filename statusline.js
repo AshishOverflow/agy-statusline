@@ -366,8 +366,42 @@ function runPreview(config) {
   console.log('');
 }
 
+// Handle setting presets directly via CLI (e.g. node statusline.js --set-preset=dots)
+function handleSetPreset() {
+  const arg = process.argv.find(a => a.startsWith('--set-preset='));
+  if (!arg) return false;
+  const newPreset = arg.split('=')[1];
+  const valid = ['minimal', 'dots', 'compact', 'slash', 'pill'];
+  if (!valid.includes(newPreset)) {
+    console.log(`Unknown preset: "${newPreset}". Choose from: ${valid.join(', ')}`);
+    return true;
+  }
+
+  const targets = [
+    path.join(__dirname, 'statusline.json'),
+    path.join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity-cli', 'statusline.json')
+  ];
+
+  for (const t of targets) {
+    let cfg = {};
+    if (fs.existsSync(t)) {
+      try { cfg = JSON.parse(fs.readFileSync(t, 'utf8')); } catch (e) {}
+    }
+    cfg.preset = newPreset;
+    try {
+      fs.writeFileSync(t, JSON.stringify(cfg, null, 2), 'utf8');
+      console.log(`Updated preset to "${newPreset}" in: ${t}`);
+    } catch (e) {}
+  }
+  return true;
+}
+
 // Entry Point
 function main() {
+  if (handleSetPreset()) {
+    return;
+  }
+
   const config = loadConfig();
 
   if (process.argv.includes('--preview') || process.argv.includes('--test')) {

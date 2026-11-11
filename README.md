@@ -139,3 +139,4 @@ This guarantees reliable execution in all terminal environments.
 ## 📄 License
 
 MIT
+
