@@ -11,6 +11,23 @@ import time
 import tempfile
 from pathlib import Path
 
+# Force UTF-8 I/O on Windows to prevent cp1252 UnicodeEncodeError
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stdin, "reconfigure"):
+    try:
+        sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Colors support check
 USE_COLORS = not os.environ.get("NO_COLOR") and (
     sys.stdout.isatty() or os.environ.get("TERM") != "dumb"
@@ -499,8 +516,21 @@ def main():
     except Exception:
         payload = {"agent_state": "idle"}
 
-    sys.stdout.write(render_statusline(payload, config) + "\n")
-    sys.stdout.flush()
+    try:
+        output_str = render_statusline(payload, config) + "\n"
+        if hasattr(sys.stdout, "buffer"):
+            sys.stdout.buffer.write(output_str.encode("utf-8", errors="replace"))
+            sys.stdout.buffer.flush()
+        else:
+            sys.stdout.write(output_str)
+            sys.stdout.flush()
+    except Exception:
+        # Failsafe fallback
+        try:
+            sys.stdout.write("● idle | Gemini\n")
+            sys.stdout.flush()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
