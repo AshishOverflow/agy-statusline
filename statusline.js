@@ -234,7 +234,7 @@ function renderStatusLine(payload, config) {
     }
   }
 
-  // 3. Context Window Usage
+  // 3. Context Window Usage (e.g. "20.5k 20%")
   if (config.show_context) {
     const ctx = (payload && payload.context_window) || {};
     let pct = ctx.used_percentage;
@@ -248,21 +248,15 @@ function renderStatusLine(payload, config) {
     if (pct >= 80) color = c.ctxAlert;
     else if (pct >= 55) color = c.ctxWarn;
 
-    const pctStr = `${pct.toFixed(pct < 10 && pct > 0 ? 1 : 0)}%`;
-    let ctxSegment = `${color}${pctStr}${c.reset}`;
-
-    if (config.show_tokens && ctx.context_window_size) {
-      const used = (ctx.total_input_tokens || 0) + (ctx.total_output_tokens || 0);
-      const cap = ctx.context_window_size;
-      ctxSegment += ` ${c.muted}(${formatTokens(used)}/${formatTokens(cap)})${c.reset}`;
-    }
+    const used = (ctx.total_input_tokens || 0) + (ctx.total_output_tokens || 0);
+    const tokenStr = formatTokens(used);
+    const pctStr = `${Math.round(pct)}%`;
+    const ctxSegment = `${c.white}${tokenStr}${c.reset} ${color}${pctStr}${c.reset}`;
 
     if (preset === 'pill') {
       parts.push(`${c.bgCtx} ${ctxSegment} ${c.reset}`);
-    } else if (preset === 'compact') {
-      parts.push(ctxSegment);
     } else {
-      parts.push(`${ctxSegment} ${c.divider}ctx${c.reset}`);
+      parts.push(ctxSegment);
     }
   }
 
@@ -336,10 +330,10 @@ function runPreview(config) {
       effort: 'medium'
     },
     context_window: {
-      used_percentage: 14.2,
-      total_input_tokens: 148900,
-      total_output_tokens: 3400,
-      context_window_size: 1048576
+      used_percentage: 20,
+      total_input_tokens: 20100,
+      total_output_tokens: 400,
+      context_window_size: 102400
     },
     vcs: {
       type: 'git',

@@ -192,7 +192,7 @@ def render_statusline(payload, config):
         else:
             parts.append(m_str)
 
-    # 3. Context Window Usage
+    # 3. Context Window Usage (e.g. "20.5k 20%")
     if config.get("show_context", True):
         ctx = payload.get("context_window") or {}
         pct = ctx.get("used_percentage")
@@ -206,20 +206,15 @@ def render_statusline(payload, config):
         elif pct >= 55:
             color = C.CTX_WARN
 
-        pct_str = f"{pct:.1f}%" if (0 < pct < 10) else f"{pct:.0f}%"
-        ctx_segment = f"{color}{pct_str}{C.RESET}"
-
-        if config.get("show_tokens") and ctx.get("context_window_size"):
-            used = ctx.get("total_input_tokens", 0) + ctx.get("total_output_tokens", 0)
-            cap = ctx["context_window_size"]
-            ctx_segment += f" {C.MUTED}({format_tokens(used)}/{format_tokens(cap)}){C.RESET}"
+        used = (ctx.get("total_input_tokens") or 0) + (ctx.get("total_output_tokens") or 0)
+        token_str = format_tokens(used)
+        pct_str = f"{round(pct)}%"
+        ctx_segment = f"{C.WHITE}{token_str}{C.RESET} {color}{pct_str}{C.RESET}"
 
         if preset == "pill":
             parts.append(f"{C.BG_CTX} {ctx_segment} {C.RESET}")
-        elif preset == "compact":
-            parts.append(ctx_segment)
         else:
-            parts.append(f"{ctx_segment} {C.DIVIDER}ctx{C.RESET}")
+            parts.append(ctx_segment)
 
     # 4. Git VCS
     if config.get("show_git", True):
@@ -273,10 +268,10 @@ def main():
             "agent_state": "idle",
             "model": {"display_name": "Gemini 3.8 Flash", "effort": "medium"},
             "context_window": {
-                "used_percentage": 14.2,
-                "total_input_tokens": 148900,
-                "total_output_tokens": 3400,
-                "context_window_size": 1048576,
+                "used_percentage": 20,
+                "total_input_tokens": 20100,
+                "total_output_tokens": 400,
+                "context_window_size": 102400,
             },
             "vcs": {"branch": "main", "dirty": True},
             "cwd": os.getcwd(),

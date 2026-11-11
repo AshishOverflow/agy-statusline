@@ -5,7 +5,7 @@ A sleek, minimalistic, ultra-fast statusline for the **Google Antigravity CLI (`
 Designed to give you high-signal session telemetry at a glance without cluttering your terminal.
 
 ```text
-● idle │ Gemini 3.8 Flash [medium] │ 14% ctx │ ⎇ main*
+● idle │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
 ```
 
 ---
@@ -31,19 +31,19 @@ Designed to give you high-signal session telemetry at a glance without clutterin
 Run `node statusline.js --preview` in your terminal to view presets live:
 
 ```text
-  MINIMAL    : ● idle │ Gemini 3.8 Flash [medium] │ 14% ctx │ ⎇ main*
-  DOTS       : ● idle · Gemini 3.8 Flash [medium] · 14% ctx · ⎇ main*
-  COMPACT    : ● idle | Gemini 3.8 Flash [medium] | 14% | ⎇ main*
-  SLASH      : ● idle / Gemini 3.8 Flash [medium] / 14% ctx / ⎇ main*
-  PILL       :  ● idle   Gemini 3.8 Flash [medium]   14%   ⎇ main* 
+  MINIMAL    : ● idle │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
+  DOTS       : ● idle · Gemini 3.8 Flash [medium] · 20.5k 20% · ⎇ main*
+  COMPACT    : ● idle | Gemini 3.8 Flash [medium] | 20.5k 20% | ⎇ main*
+  SLASH      : ● idle / Gemini 3.8 Flash [medium] / 20.5k 20% / ⎇ main*
+  PILL       :  ● idle   Gemini 3.8 Flash [medium]   20.5k 20%   ⎇ main* 
 ```
 
 ### Agent States
 ```text
-  idle       : ● idle │ Gemini 3.8 Flash [medium] │ 14% ctx │ ⎇ main*
-  thinking   : ◆ thinking │ Gemini 3.8 Flash [medium] │ 14% ctx │ ⎇ main*
-  working    : ⟳ working │ Gemini 3.8 Flash [medium] │ 14% ctx │ ⎇ main*
-  tool_use   : ⚙ tool │ Gemini 3.8 Flash [medium] │ 14% ctx │ ⎇ main*
+  idle       : ● idle │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
+  thinking   : ◆ thinking │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
+  working    : ⟳ working │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
+  tool_use   : ⚙ tool │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
 ```
 
 ---

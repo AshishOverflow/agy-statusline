@@ -99,7 +99,11 @@ try {
   const testPayload = JSON.stringify({
     agent_state: 'idle',
     model: { display_name: 'Gemini 3.8 Flash', effort: 'medium' },
-    context_window: { used_percentage: 14.2 },
+    context_window: {
+      used_percentage: 20,
+      total_input_tokens: 20100,
+      total_output_tokens: 400
+    },
     vcs: { branch: 'main' }
   });
 
