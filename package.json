@@ -10,7 +10,12 @@
     "start": "node statusline.js",
     "test": "node statusline.js --test",
     "preview": "node statusline.js --preview",
-    "install-agy": "node install.js"
+    "install-agy": "node install.js",
+    "preset:minimal": "node statusline.js --set-preset=minimal",
+    "preset:dots": "node statusline.js --set-preset=dots",
+    "preset:compact": "node statusline.js --set-preset=compact",
+    "preset:pill": "node statusline.js --set-preset=pill",
+    "preset:slash": "node statusline.js --set-preset=slash"
   },
   "keywords": [
     "antigravity",
