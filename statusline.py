@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 ✦ Antigravity CLI Minimalistic 2-Line Statusline (Python) ✦
-Fast, zero-dependency statusline script for Google Antigravity CLI (agy).
+A sleek, ultra-fast, zero-dependency 2-line statusline for Google Antigravity CLI (agy).
 """
 
 import sys
 import os
 import json
 import time
+import tempfile
 from pathlib import Path
 
 # Colors support check
@@ -67,13 +68,13 @@ def load_config():
         Path.home() / ".gemini" / "antigravity-cli" / "statusline.json",
     ]
     for p in paths:
-        if p.exists():
-            try:
+        try:
+            if p.exists():
                 with open(p, "r", encoding="utf-8") as f:
                     config.update(json.load(f))
                 break
-            except Exception:
-                pass
+        except Exception:
+            pass
 
     for arg in sys.argv[1:]:
         if arg.startswith("--preset="):
@@ -90,6 +91,43 @@ def load_config():
             config["show_limits"] = False
 
     return config
+
+
+def handle_set_preset():
+    target_arg = None
+    for a in sys.argv[1:]:
+        if a.startswith("--set-preset="):
+            target_arg = a
+            break
+    if not target_arg:
+        return False
+
+    new_preset = target_arg.split("=")[1].strip()
+    valid = ["minimal", "dots", "compact", "slash", "pill"]
+    if new_preset not in valid:
+        print(f"Unknown preset: '{new_preset}'. Choose from: {', '.join(valid)}")
+        return True
+
+    targets = [
+        Path(__file__).parent / "statusline.json",
+        Path.home() / ".gemini" / "antigravity-cli" / "statusline.json",
+    ]
+    for t in targets:
+        cfg = {}
+        try:
+            if t.exists():
+                with open(t, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+        except Exception:
+            pass
+        cfg["preset"] = new_preset
+        try:
+            with open(t, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, indent=2)
+            print(f"Updated preset to '{new_preset}' in: {t}")
+        except Exception:
+            pass
+    return True
 
 
 def format_tokens(n):
@@ -161,12 +199,24 @@ def get_git_info_fast(payload):
 
 
 def parse_quota(payload):
-    raw = payload.get("quota") or payload.get("rate_limits") or payload.get("limits") or payload.get("quotas")
+    raw = (
+        payload.get("quota")
+        or payload.get("rate_limits")
+        or payload.get("limits")
+        or payload.get("quotas")
+    )
     buckets = {}
 
     if isinstance(raw, list):
         for item in raw:
-            i_id = str(item.get("window") or item.get("bucket_id") or item.get("bucketId") or item.get("display_name") or item.get("id") or "").lower()
+            i_id = str(
+                item.get("window")
+                or item.get("bucket_id")
+                or item.get("bucketId")
+                or item.get("display_name")
+                or item.get("id")
+                or ""
+            ).lower()
             if "5h" in i_id or "five" in i_id:
                 buckets["5h"] = item
             elif "7d" in i_id or "seven" in i_id or "week" in i_id:
@@ -179,19 +229,20 @@ def parse_quota(payload):
             elif k_low == "7d" or "seven" in k_low or "week" in k_low:
                 buckets["7d"] = v
 
-    cache_path = Path.home() / ".gemini" / "antigravity-cli" / ".quota_cache.json"
+    cache_path = Path(tempfile.gettempdir()) / "agy_quota_cache.json"
     if buckets:
         try:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump({"timestamp": time.time(), "buckets": buckets}, f)
         except Exception:
             pass
-    elif cache_path.exists():
+    else:
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
-                cached = json.load(f)
-                if cached and "buckets" in cached:
-                    buckets = cached["buckets"]
+            if cache_path.exists():
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+                    if cached and "buckets" in cached:
+                        buckets = cached["buckets"]
         except Exception:
             pass
 
@@ -216,8 +267,13 @@ def parse_quota(payload):
             if isinstance(t, (int, float)):
                 t_sec = t if t < 1e11 else t / 1000
                 seconds_left = max(0, t_sec - time.time())
-            else:
-                pass  # string parsing fallback if needed
+            elif isinstance(t, str):
+                try:
+                    import datetime
+                    dt = datetime.datetime.fromisoformat(t.replace("Z", "+00:00"))
+                    seconds_left = max(0, dt.timestamp() - time.time())
+                except Exception:
+                    pass
 
         return {"pct": pct, "seconds_left": seconds_left}
 
@@ -269,7 +325,7 @@ def render_statusline(payload, config):
         "bolt": "󱐋" if nerd else "⚡",
     }
 
-    # LINE 1: State
+    # LINE 1: Agent State
     if config.get("show_state", True):
         raw_state = (payload.get("agent_state") or "idle").lower()
         color = C.IDLE
@@ -297,7 +353,7 @@ def render_statusline(payload, config):
         else:
             line1_parts.append(f"{color}{icon} {C.WHITE}{label}{C.RESET}")
 
-    # Model & Effort
+    # LINE 1: Model & Effort
     if config.get("show_model", True):
         m = payload.get("model") or {}
         name = m.get("display_name") or m.get("id") or "Gemini"
@@ -315,7 +371,7 @@ def render_statusline(payload, config):
         else:
             line1_parts.append(m_str)
 
-    # Git
+    # LINE 1: Git Branch
     if config.get("show_git", True):
         branch, dirty = get_git_info_fast(payload)
         if branch:
@@ -326,18 +382,34 @@ def render_statusline(payload, config):
             else:
                 line1_parts.append(git_seg)
 
-    # Workspace
+    # LINE 1: Workspace Folder (Optional)
     if config.get("show_workspace"):
         folder = Path(payload.get("cwd") or os.getcwd()).name
         if folder:
             line1_parts.append(f"{C.MUTED}{glyphs['folder']} {folder}{C.RESET}")
+
+    # LINE 1: Active Tasks / Subagents
+    if config.get("show_tasks") and payload:
+        task_count = payload.get("task_count", 0)
+        subagents = payload.get("subagents", 0)
+        sub_count = len(subagents) if isinstance(subagents, list) else int(subagents or 0)
+        badges = []
+        if task_count > 0:
+            badges.append(f"{glyphs['bolt']} {task_count} task{'s' if task_count > 1 else ''}")
+        if sub_count > 0:
+            badges.append(f"👥 {sub_count} agent{'s' if sub_count > 1 else ''}")
+        if badges:
+            line1_parts.append(f"{C.EFFORT}{' '.join(badges)}{C.RESET}")
 
     # LINE 2: Context Window ("20.5k 20%")
     if config.get("show_context", True):
         ctx = payload.get("context_window") or {}
         pct = ctx.get("used_percentage")
         if pct is None and ctx.get("total_input_tokens") and ctx.get("context_window_size"):
-            pct = ((ctx["total_input_tokens"] + ctx.get("total_output_tokens", 0)) / ctx["context_window_size"]) * 100
+            pct = (
+                (ctx["total_input_tokens"] + ctx.get("total_output_tokens", 0))
+                / ctx["context_window_size"]
+            ) * 100
         pct = float(pct) if pct is not None else 0.0
 
         color = C.CTX_NORMAL
@@ -356,7 +428,7 @@ def render_statusline(payload, config):
         else:
             line2_parts.append(ctx_segment)
 
-    # LINE 2: 5h and 7d limits
+    # LINE 2: 5h and 7d limits with time remaining
     if config.get("show_limits", True):
         q = parse_quota(payload)
         q5h = format_quota_segment("5h", q.get("b5h"), preset)
@@ -375,6 +447,8 @@ def render_statusline(payload, config):
         sep = f" {C.DIVIDER}/{C.RESET} "
     elif preset == "pill":
         sep = " "
+    elif config.get("separator"):
+        sep = f" {C.DIVIDER}{config['separator']}{C.RESET} "
 
     l1 = sep.join(line1_parts)
     l2 = sep.join(line2_parts)
@@ -387,6 +461,9 @@ def render_statusline(payload, config):
 
 
 def main():
+    if handle_set_preset():
+        return
+
     config = load_config()
 
     if "--preview" in sys.argv or "--test" in sys.argv:
@@ -406,7 +483,7 @@ def main():
             "vcs": {"branch": "main", "dirty": False},
             "cwd": os.getcwd(),
         }
-        print(f"\n{C.BOLD}✦ Antigravity CLI 2-Line Python Statusline Preview ✦{C.RESET}\n")
+        print(f"\n{C.BOLD}✦ Antigravity CLI 2-Line Statusline Preview ✦{C.RESET}\n")
         for p in ["minimal", "dots", "compact", "slash", "pill"]:
             cfg = dict(config, preset=p)
             print(f"{C.BOLD}{p.upper()}:{C.RESET}")
