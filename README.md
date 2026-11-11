@@ -1,4 +1,4 @@
-# ✦ agy-statusline ✦
+# agy-statusline
 
 A sleek, minimalistic, ultra-fast 2-line statusline for the **Google Antigravity CLI (`agy`)**, written in pure **Python 3**.
 
@@ -11,12 +11,12 @@ Designed to give you high-signal session telemetry at a glance without clutterin
 
 ---
 
-## ✨ Features
+## Features
 
 - **Minimalist & Distraction-Free**: Muted colors, low-contrast separators, and clean typography.
 - **2-Line Telemetry Layout**:
   - **Line 1 (Session & Environment)**:
-    - **Agent State**: Color-coded indicator (`● idle`, `◆ thinking`, `⟳ working`, `⚙ tool`, `✖ error`).
+    - **Agent State**: Color-coded indicator (`idle`, `thinking`, `working`, `tool`, `error`).
     - **Active Model & Effort**: Clean model name with reasoning effort tier (`Gemini 3.8 Flash [high]`).
     - **Git Branch**: Instant filesystem-based branch resolution without spawning slow subprocesses (`⎇ main`).
   - **Line 2 (Context & Quotas)**:
@@ -30,7 +30,7 @@ Designed to give you high-signal session telemetry at a glance without clutterin
 
 ---
 
-## 🎨 Presets Preview
+## Presets Preview
 
 Run `python statusline.py --preview` in your terminal to view all styles live:
 
@@ -58,7 +58,7 @@ PILL:
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### Automatic Setup (One Command)
 
@@ -77,7 +77,7 @@ Once installed, start or restart your `agy` CLI to see the statusline.
 
 ---
 
-## ⚙️ Configuration (`statusline.json`)
+## Configuration (`statusline.json`)
 
 You can customize your statusline by editing `~/.gemini/antigravity-cli/statusline.json`:
 
@@ -126,7 +126,7 @@ python statusline.py --set-preset=dots
 
 ---
 
-## 🎮 CLI Controls
+## CLI Controls
 
 Inside an active `agy` CLI session:
 
@@ -137,6 +137,12 @@ Inside an active `agy` CLI session:
 
 ---
 
-## 📄 License
+## Issues & Feedback
+
+Feel free to raise an issue if you encounter any problems, have questions, or would like to request new features.
+
+---
+
+## License
 
 MIT
