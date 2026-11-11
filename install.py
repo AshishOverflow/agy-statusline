@@ -35,7 +35,7 @@ for fname in ["statusline.py", "statusline.json"]:
 
 # 2. Resolve space-safe path on Windows
 script_path = str(agy_dir / "statusline.py")
-configured_command = f"python {script_path}"
+configured_command = f"python -X utf8 {script_path}"
 
 if sys.platform == "win32":
     try:
@@ -48,9 +48,9 @@ if sys.platform == "win32":
         short_home = res.stdout.strip()
         if short_home and " " not in short_home:
             clean_path = Path(short_home) / ".gemini" / "antigravity-cli" / "statusline.py"
-            configured_command = f"python {clean_path}"
+            configured_command = f"python -X utf8 {clean_path}"
     except Exception:
-        configured_command = f'python "{script_path}"'
+        configured_command = f'python -X utf8 "{script_path}"'
 
 print(f"[2/4] Space-safe command: {configured_command}")
 
