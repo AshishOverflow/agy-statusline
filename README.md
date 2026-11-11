@@ -5,7 +5,8 @@ A sleek, minimalistic, ultra-fast statusline for the **Google Antigravity CLI (`
 Designed to give you high-signal session telemetry at a glance without cluttering your terminal.
 
 ```text
-● idle │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
+● idle │ Gemini 3.8 Flash [high] │ ⎇ main
+20.5k 20% │ 5h: 82% (3h 42m) │ 7d: 65% (4d 12h)
 ```
 
 ---
@@ -31,11 +32,17 @@ Designed to give you high-signal session telemetry at a glance without clutterin
 Run `node statusline.js --preview` in your terminal to view presets live:
 
 ```text
-  MINIMAL    : ● idle │ Gemini 3.8 Flash [medium] │ 20.5k 20% │ ⎇ main*
-  DOTS       : ● idle · Gemini 3.8 Flash [medium] · 20.5k 20% · ⎇ main*
-  COMPACT    : ● idle | Gemini 3.8 Flash [medium] | 20.5k 20% | ⎇ main*
-  SLASH      : ● idle / Gemini 3.8 Flash [medium] / 20.5k 20% / ⎇ main*
-  PILL       :  ● idle   Gemini 3.8 Flash [medium]   20.5k 20%   ⎇ main* 
+MINIMAL:
+  ● idle │ Gemini 3.8 Flash [high] │ ⎇ main
+  20.5k 20% │ 5h: 82% (3h 42m) │ 7d: 65% (4d 12h)
+
+DOTS:
+  ● idle · Gemini 3.8 Flash [high] · ⎇ main
+  20.5k 20% · 5h: 82% (3h 42m) · 7d: 65% (4d 12h)
+
+COMPACT:
+  ● idle | Gemini 3.8 Flash [high] | ⎇ main
+  20.5k 20% | 5h: 82% (3h 42m) | 7d: 65% (4d 12h)
 ```
 
 ### Agent States

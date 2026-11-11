@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-✦ Antigravity CLI Minimalistic Statusline (Python) ✦
+✦ Antigravity CLI Minimalistic 2-Line Statusline (Python) ✦
 Fast, zero-dependency statusline script for Google Antigravity CLI (agy).
 """
 
 import sys
 import os
 import json
-import subprocess
+import time
 from pathlib import Path
 
 # Colors support check
@@ -46,13 +46,14 @@ class C:
 
 DEFAULT_CONFIG = {
     "preset": "minimal",
+    "multiline": True,
     "show_state": True,
     "show_model": True,
     "show_effort": True,
     "show_context": True,
+    "show_limits": True,
     "show_git": True,
     "show_workspace": False,
-    "show_tokens": False,
     "show_tasks": True,
     "nerd_fonts": False,
     "separator": "│",
@@ -77,14 +78,16 @@ def load_config():
     for arg in sys.argv[1:]:
         if arg.startswith("--preset="):
             config["preset"] = arg.split("=")[1]
+        elif arg == "--single-line":
+            config["multiline"] = False
         elif arg in ("--nerd-fonts", "--nerd"):
             config["nerd_fonts"] = True
-        elif arg == "--tokens":
-            config["show_tokens"] = True
         elif arg == "--workspace":
             config["show_workspace"] = True
         elif arg == "--no-git":
             config["show_git"] = False
+        elif arg == "--no-limits":
+            config["show_limits"] = False
 
     return config
 
@@ -99,38 +102,158 @@ def format_tokens(n):
     return str(n)
 
 
-def get_git_info(payload, cwd):
+def format_time_remaining(seconds):
+    if seconds is None:
+        return None
+    if seconds <= 0:
+        return "0m"
+    s = int(round(seconds))
+    d = s // 86400
+    h = (s % 86400) // 3600
+    m = (s % 3600) // 60
+
+    if d > 0:
+        return f"{d}d {h}h" if h > 0 else f"{d}d"
+    if h > 0:
+        return f"{h}h {m}m" if m > 0 else f"{h}h"
+    if m > 0:
+        return f"{m}m"
+    return f"{s}s"
+
+
+def get_git_info_fast(payload):
     if payload and payload.get("vcs", {}).get("branch"):
         return payload["vcs"]["branch"], bool(payload["vcs"].get("dirty"))
 
-    target_dir = cwd or (payload.get("cwd") if payload else None) or os.getcwd()
+    start_dir = Path((payload.get("cwd") if payload else None) or os.getcwd())
     try:
-        res = subprocess.run(
-            ["git", "branch", "--show-current"],
-            cwd=target_dir,
-            capture_output=True,
-            text=True,
-            timeout=0.25,
-        )
-        branch = res.stdout.strip()
-        if not branch:
+        cur = start_dir
+        git_dir = None
+        for _ in range(4):
+            candidate = cur / ".git"
+            if candidate.exists():
+                git_dir = candidate
+                break
+            if cur.parent == cur:
+                break
+            cur = cur.parent
+
+        if not git_dir:
             return None, False
 
-        dirty_res = subprocess.run(
-            ["git", "status", "--porcelain", "-uno"],
-            cwd=target_dir,
-            capture_output=True,
-            text=True,
-            timeout=0.25,
-        )
-        dirty = len(dirty_res.stdout.strip()) > 0
+        head_path = git_dir / "HEAD"
+        if git_dir.is_file():
+            content = git_dir.read_text(encoding="utf-8").strip()
+            if content.startswith("gitdir:"):
+                rel = content[7:].strip()
+                real_dir = Path(rel) if os.path.isabs(rel) else git_dir.parent / rel
+                head_path = real_dir / "HEAD"
+
+        if not head_path.exists():
+            return None, False
+
+        head = head_path.read_text(encoding="utf-8").strip()
+        branch = head[16:].strip() if head.startswith("ref: refs/heads/") else head[:7]
+        dirty = bool(payload and payload.get("vcs", {}).get("dirty"))
         return branch, dirty
     except Exception:
         return None, False
 
 
+def parse_quota(payload):
+    raw = payload.get("quota") or payload.get("rate_limits") or payload.get("limits") or payload.get("quotas")
+    buckets = {}
+
+    if isinstance(raw, list):
+        for item in raw:
+            i_id = str(item.get("window") or item.get("bucket_id") or item.get("bucketId") or item.get("display_name") or item.get("id") or "").lower()
+            if "5h" in i_id or "five" in i_id:
+                buckets["5h"] = item
+            elif "7d" in i_id or "seven" in i_id or "week" in i_id:
+                buckets["7d"] = item
+    elif isinstance(raw, dict):
+        for k, v in raw.items():
+            k_low = k.lower()
+            if k_low == "5h" or "five" in k_low:
+                buckets["5h"] = v
+            elif k_low == "7d" or "seven" in k_low or "week" in k_low:
+                buckets["7d"] = v
+
+    cache_path = Path.home() / ".gemini" / "antigravity-cli" / ".quota_cache.json"
+    if buckets:
+        try:
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump({"timestamp": time.time(), "buckets": buckets}, f)
+        except Exception:
+            pass
+    elif cache_path.exists():
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+                if cached and "buckets" in cached:
+                    buckets = cached["buckets"]
+        except Exception:
+            pass
+
+    def extract_bucket(b):
+        if not b:
+            return None
+        pct = None
+        if b.get("remaining_fraction") is not None:
+            pct = round(b["remaining_fraction"] * 100)
+        elif b.get("used_percentage") is not None:
+            pct = round(100 - b["used_percentage"])
+        elif b.get("remaining") is not None and b.get("total") and b["total"] > 0:
+            pct = round((b["remaining"] / b["total"]) * 100)
+        elif b.get("percentage") is not None:
+            pct = round(b["percentage"])
+
+        seconds_left = None
+        if b.get("reset_in_seconds") is not None:
+            seconds_left = float(b["reset_in_seconds"])
+        elif b.get("reset_time") or b.get("resets_at") or b.get("expiry"):
+            t = b.get("reset_time") or b.get("resets_at") or b.get("expiry")
+            if isinstance(t, (int, float)):
+                t_sec = t if t < 1e11 else t / 1000
+                seconds_left = max(0, t_sec - time.time())
+            else:
+                pass  # string parsing fallback if needed
+
+        return {"pct": pct, "seconds_left": seconds_left}
+
+    return {
+        "b5h": extract_bucket(buckets.get("5h")),
+        "b7d": extract_bucket(buckets.get("7d")),
+    }
+
+
+def format_quota_segment(name, bucket_info, preset):
+    if not bucket_info:
+        return None
+    pct = bucket_info.get("pct")
+    sec = bucket_info.get("seconds_left")
+    if pct is None and sec is None:
+        return None
+
+    color = C.CTX_NORMAL
+    if pct is not None:
+        if pct <= 20:
+            color = C.ERROR
+        elif pct <= 50:
+            color = C.THINKING
+
+    pct_part = f"{color}{pct}%{C.RESET}" if pct is not None else ""
+    time_str = format_time_remaining(sec)
+    time_part = f" {C.MUTED}({time_str}){C.RESET}" if time_str else ""
+
+    if preset == "pill":
+        return f"{C.BG_CTX} {C.WHITE}{name}:{C.RESET} {pct_part}{time_part} {C.RESET}"
+    return f"{C.WHITE}{name}:{C.RESET} {pct_part}{time_part}"
+
+
 def render_statusline(payload, config):
-    parts = []
+    line1_parts = []
+    line2_parts = []
     preset = config.get("preset", "minimal")
     nerd = config.get("nerd_fonts", False)
 
@@ -146,7 +269,7 @@ def render_statusline(payload, config):
         "bolt": "󱐋" if nerd else "⚡",
     }
 
-    # 1. State
+    # LINE 1: State
     if config.get("show_state", True):
         raw_state = (payload.get("agent_state") or "idle").lower()
         color = C.IDLE
@@ -168,13 +291,13 @@ def render_statusline(payload, config):
             icon = glyphs["error"]
 
         if preset == "pill":
-            parts.append(f"{C.BG_STATE} {color}{icon} {C.WHITE}{label} {C.RESET}")
+            line1_parts.append(f"{C.BG_STATE} {color}{icon} {C.WHITE}{label} {C.RESET}")
         elif preset == "compact":
-            parts.append(f"{color}{icon} {label}{C.RESET}")
+            line1_parts.append(f"{color}{icon} {label}{C.RESET}")
         else:
-            parts.append(f"{color}{icon} {C.WHITE}{label}{C.RESET}")
+            line1_parts.append(f"{color}{icon} {C.WHITE}{label}{C.RESET}")
 
-    # 2. Model & Effort
+    # Model & Effort
     if config.get("show_model", True):
         m = payload.get("model") or {}
         name = m.get("display_name") or m.get("id") or "Gemini"
@@ -188,11 +311,28 @@ def render_statusline(payload, config):
 
         m_str = f"{C.MODEL}{name}{(' ' + effort_tag) if effort_tag else ''}{C.RESET}"
         if preset == "pill":
-            parts.append(f"{C.BG_MODEL} {m_str} {C.RESET}")
+            line1_parts.append(f"{C.BG_MODEL} {m_str} {C.RESET}")
         else:
-            parts.append(m_str)
+            line1_parts.append(m_str)
 
-    # 3. Context Window Usage (e.g. "20.5k 20%")
+    # Git
+    if config.get("show_git", True):
+        branch, dirty = get_git_info_fast(payload)
+        if branch:
+            dirty_str = f"{C.THINKING}*{C.RESET}" if dirty else ""
+            git_seg = f"{C.GIT}{glyphs['git']} {C.WHITE}{branch}{dirty_str}{C.RESET}"
+            if preset == "pill":
+                line1_parts.append(f"{C.BG_GIT} {git_seg} {C.RESET}")
+            else:
+                line1_parts.append(git_seg)
+
+    # Workspace
+    if config.get("show_workspace"):
+        folder = Path(payload.get("cwd") or os.getcwd()).name
+        if folder:
+            line1_parts.append(f"{C.MUTED}{glyphs['folder']} {folder}{C.RESET}")
+
+    # LINE 2: Context Window ("20.5k 20%")
     if config.get("show_context", True):
         ctx = payload.get("context_window") or {}
         pct = ctx.get("used_percentage")
@@ -212,42 +352,19 @@ def render_statusline(payload, config):
         ctx_segment = f"{C.WHITE}{token_str}{C.RESET} {color}{pct_str}{C.RESET}"
 
         if preset == "pill":
-            parts.append(f"{C.BG_CTX} {ctx_segment} {C.RESET}")
+            line2_parts.append(f"{C.BG_CTX} {ctx_segment} {C.RESET}")
         else:
-            parts.append(ctx_segment)
+            line2_parts.append(ctx_segment)
 
-    # 4. Git VCS
-    if config.get("show_git", True):
-        branch, dirty = get_git_info(payload, payload.get("cwd"))
-        if branch:
-            dirty_str = f"{C.THINKING}*{C.RESET}" if dirty else ""
-            git_seg = f"{C.GIT}{glyphs['git']} {C.WHITE}{branch}{dirty_str}{C.RESET}"
-            if preset == "pill":
-                parts.append(f"{C.BG_GIT} {git_seg} {C.RESET}")
-            else:
-                parts.append(git_seg)
-
-    # 5. Workspace
-    if config.get("show_workspace"):
-        folder = Path(payload.get("cwd") or os.getcwd()).name
-        if folder:
-            parts.append(f"{C.MUTED}{glyphs['folder']} {folder}{C.RESET}")
-
-    # 6. Tasks / Subagents
-    if config.get("show_tasks") and payload:
-        task_count = payload.get("task_count", 0)
-        subagents = payload.get("subagents", 0)
-        sub_count = len(subagents) if isinstance(subagents, list) else int(subagents or 0)
-        badges = []
-        if task_count > 0:
-            badges.append(f"{glyphs['bolt']} {task_count} task{'s' if task_count > 1 else ''}")
-        if sub_count > 0:
-            badges.append(f"👥 {sub_count} agent{'s' if sub_count > 1 else ''}")
-        if badges:
-            parts.append(f"{C.EFFORT}{' '.join(badges)}{C.RESET}")
-
-    if preset == "pill":
-        return " ".join(parts)
+    # LINE 2: 5h and 7d limits
+    if config.get("show_limits", True):
+        q = parse_quota(payload)
+        q5h = format_quota_segment("5h", q.get("b5h"), preset)
+        q7d = format_quota_segment("7d", q.get("b7d"), preset)
+        if q5h:
+            line2_parts.append(q5h)
+        if q7d:
+            line2_parts.append(q7d)
 
     sep = f" {C.DIVIDER}│{C.RESET} "
     if preset == "dots":
@@ -256,8 +373,17 @@ def render_statusline(payload, config):
         sep = f" {C.DIVIDER}|{C.RESET} "
     elif preset == "slash":
         sep = f" {C.DIVIDER}/{C.RESET} "
+    elif preset == "pill":
+        sep = " "
 
-    return sep.join(parts)
+    l1 = sep.join(line1_parts)
+    l2 = sep.join(line2_parts)
+
+    if config.get("multiline", True) and line2_parts:
+        return f"{l1}\n{l2}"
+    if line2_parts:
+        return f"{l1}{sep}{l2}"
+    return l1
 
 
 def main():
@@ -266,21 +392,28 @@ def main():
     if "--preview" in sys.argv or "--test" in sys.argv:
         sample = {
             "agent_state": "idle",
-            "model": {"display_name": "Gemini 3.8 Flash", "effort": "medium"},
+            "model": {"display_name": "Gemini 3.8 Flash", "effort": "high"},
             "context_window": {
                 "used_percentage": 20,
                 "total_input_tokens": 20100,
                 "total_output_tokens": 400,
                 "context_window_size": 102400,
             },
-            "vcs": {"branch": "main", "dirty": True},
+            "quota": {
+                "5h": {"remaining_fraction": 0.82, "reset_in_seconds": 13320},
+                "7d": {"remaining_fraction": 0.65, "reset_in_seconds": 388800},
+            },
+            "vcs": {"branch": "main", "dirty": False},
             "cwd": os.getcwd(),
         }
-        print(f"\n{C.BOLD}✦ Antigravity CLI Python Statusline Preview ✦{C.RESET}\n")
+        print(f"\n{C.BOLD}✦ Antigravity CLI 2-Line Python Statusline Preview ✦{C.RESET}\n")
         for p in ["minimal", "dots", "compact", "slash", "pill"]:
             cfg = dict(config, preset=p)
-            print(f"  {p.upper():<10} : {render_statusline(sample, cfg)}")
-        print("")
+            print(f"{C.BOLD}{p.upper()}:{C.RESET}")
+            res = render_statusline(sample, cfg)
+            for l in res.split("\n"):
+                print(f"  {l}")
+            print("")
         return
 
     try:
@@ -295,4 +428,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -98,11 +98,15 @@ console.log(`[4/4] Verifying statusline execution...`);
 try {
   const testPayload = JSON.stringify({
     agent_state: 'idle',
-    model: { display_name: 'Gemini 3.8 Flash', effort: 'medium' },
+    model: { display_name: 'Gemini 3.8 Flash', effort: 'high' },
     context_window: {
       used_percentage: 20,
       total_input_tokens: 20100,
       total_output_tokens: 400
+    },
+    quota: {
+      '5h': { remaining_fraction: 0.82, reset_in_seconds: 13320 },
+      '7d': { remaining_fraction: 0.65, reset_in_seconds: 388800 }
     },
     vcs: { branch: 'main' }
   });

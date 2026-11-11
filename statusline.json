@@ -1,12 +1,13 @@
 {
   "preset": "minimal",
+  "multiline": true,
   "show_state": true,
   "show_model": true,
   "show_effort": true,
   "show_context": true,
+  "show_limits": true,
   "show_git": true,
   "show_workspace": false,
-  "show_tokens": false,
   "show_tasks": true,
   "nerd_fonts": false,
   "separator": "│"
